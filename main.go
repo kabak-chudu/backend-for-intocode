@@ -339,7 +339,7 @@ func GetGroupByID(ctx *gin.Context) {
 
 func GetGroups(ctx *gin.Context) {
 	week_s := ctx.Query("week")
-	is_finished_s := ctx.Query("is_finished")
+	is_finished_s := ctx.Query("finished")
 	if week_s != "" {
 		week, err := strconv.Atoi(week_s)
 		if err != nil {
