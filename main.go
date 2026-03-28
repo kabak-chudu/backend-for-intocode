@@ -31,12 +31,119 @@ func main() {
 	router.PATCH("/students/:id", PATCHStudent)
 	router.DELETE("/students/:id", DELETEStudent)
 	// groups
+	// не сделал пока percent_offer
 	router.GET("/groups", GetGroups)
 	router.GET("/groups/:id", GetGroupByID)
 	router.POST("/groups", AddGroup)
 	router.PATCH("/groups/:id", PATCHGroup)
 	router.DELETE("/groups/:id", DELETEGroup)
+	//notes
+	router.GET("/notes/:id", NoteByID)
+	router.GET("/students/:id/notes", NotesForStudent) // — все заметки по студенту;
+	router.POST("/notes", AddNote)                     // — создание заметки (в теле запроса должен быть student_id);
+	router.PATCH("/notes/:id", PATCHNote)              //— редактирование текста;
+	router.DELETE("/notes/:id", DELETENote)            //— удаление заметки.
 	router.Run()
+}
+
+func NotesForStudent(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	notes, err := notes.GetAllNotesForStudent(uint(id))
+	if err != nil {
+		ctx.JSON(404, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.IndentedJSON(200, gin.H{"notes for student": notes})
+}
+
+func AddNote(ctx *gin.Context) {
+	var req struct {
+		Student_ID *uint  `json:"student_id"`
+		Author     string `json:"author"`
+		Text       string `json:"text" binding:"required"`
+	}
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Student_ID == nil {
+		ctx.JSON(400, gin.H{"error": "поле student_id обязательно надо указать"})
+		return
+	}
+	if *req.Student_ID <= 0 {
+		ctx.JSON(400, gin.H{"error": "поле student_id должнео быть больше 0"})
+		return
+	}
+
+	note, err := notes.CreateNote(*req.Student_ID, req.Author, req.Text)
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(201, gin.H{"created": note})
+
+}
+
+func PATCHNote(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	var req struct {
+		Author string `json:"author" binding:"required"`
+	}
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	note, err := notes.UpdateNote(uint(id), req.Author)
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(200, gin.H{"edited": note})
+}
+
+func DELETENote(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if err := notes.DeleteNote(uint(id)); err != nil {
+		ctx.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(200, gin.H{"message": "deleted"})
+}
+
+func NoteByID(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	note, err := notes.GetNoteID(uint(id))
+	if err != nil {
+		ctx.JSON(404, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(200, note)
 }
 
 func GetStudentsByGroup(ctx *gin.Context) {
