@@ -31,7 +31,7 @@ func main() {
 	router.PATCH("/students/:id", PATCHStudent)
 	router.DELETE("/students/:id", DELETEStudent)
 	// groups
-	// не сделал пока percent_offer
+	router.GET("/groups/:id/stats/offer", GETOffer) // не сделал пока percent_offer
 	router.GET("/groups", GetGroups)
 	router.GET("/groups/:id", GetGroupByID)
 	router.POST("/groups", AddGroup)
@@ -44,6 +44,44 @@ func main() {
 	router.PATCH("/notes/:id", PATCHNote)              //— редактирование текста;
 	router.DELETE("/notes/:id", DELETENote)            //— удаление заметки.
 	router.Run()
+}
+
+func GetOfferPercent(group_id uint) (float64, error) {
+	db, err := connectdatabase.Connect()
+	if err != nil {
+		return 0, err
+	}
+	var total int64
+	var offers int64
+	db.Model(&students.Student{}).Where("group_id", group_id).Count(&total)
+	if total == 0 {
+		return 0, nil
+	}
+
+	db.Model(&students.Student{}).Where("group_id = ? AND study_status = ?", group_id, "offer").Count(&offers)
+
+	percent := (float64(offers) / float64(total)) * 100
+	return percent, nil
+
+}
+
+func GETOffer(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	percent, err := GetOfferPercent(uint(id))
+	if err != nil {
+		ctx.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(200, gin.H{
+		"group_id":      id,
+		"offer_percent": percent,
+	})
 }
 
 func NotesForStudent(ctx *gin.Context) {
