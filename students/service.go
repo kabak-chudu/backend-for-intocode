@@ -20,7 +20,7 @@ func DeleteStudent(id uint) error {
 	return nil
 }
 
-func CreateStudent(full_name, email, telegram string, group_id uint, tuition_total uint) (*Student, error) {
+func CreateStudent(full_name, email, telegram string, payment_status *string, study_status *string, group_id uint, tuition_total uint) (*Student, error) {
 	db, err := connectdatabase.Connect()
 	if err != nil {
 		return nil, errors.New("не удалость кстановить соединение с БД")
@@ -32,9 +32,9 @@ func CreateStudent(full_name, email, telegram string, group_id uint, tuition_tot
 		Telegram:       telegram,
 		GroupID:        group_id,
 		Tuition_total:  tuition_total,
-		Tuition_paid:   0,          // начальная оплата 0
-		Payment_status: "unpaid",   // начальный статус - не оплачено
-		Study_status:   "learning", // начальный статус - обучается
+		Tuition_paid:   0,               // начальная оплата 0
+		Payment_status: *payment_status, // начальный статус - не оплачено
+		Study_status:   *study_status,   // начальный статус - обучается
 	}
 	// валидация!!!
 	if full_name == "" {
@@ -47,6 +47,22 @@ func CreateStudent(full_name, email, telegram string, group_id uint, tuition_tot
 	} else {
 		student.GroupID = group_id
 		student.Group = group
+	}
+
+	if study_status != nil {
+		validStatuses := map[string]bool{"learning": true, "job_search": true, "working": true, "offer": true}
+		if !validStatuses[*study_status] {
+			return nil, errors.New("такого статуса учебы нет")
+		}
+		student.Study_status = *study_status
+	}
+
+	if payment_status != nil {
+		validStatuses := map[string]bool{"paid": true, "unpaid": true, "partial": true}
+		if !validStatuses[*payment_status] {
+			return nil, errors.New("такого статуса оплаты нет")
+		}
+		student.Payment_status = *payment_status
 	}
 
 	res := db.Create(&student)

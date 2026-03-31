@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/kabak-chudu/backend-for-intocode/groups"
 	"github.com/kabak-chudu/backend-for-intocode/notes"
 	"github.com/kabak-chudu/backend-for-intocode/students"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -52,13 +54,15 @@ func GetOfferPercent(group_id uint) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if err := db.First(&groups.Group{}, group_id).Error; err != nil {
+		return 0, err
+	}
 	var total int64
 	var offers int64
 	db.Model(&students.Student{}).Where("group_id", group_id).Count(&total)
 	if total == 0 {
 		return 0, nil
 	}
-
 	db.Model(&students.Student{}).Where("group_id = ? AND study_status = ?", group_id, "offer").Count(&offers)
 
 	percent := (float64(offers) / float64(total)) * 100
@@ -69,17 +73,22 @@ func GetOfferPercent(group_id uint) (float64, error) {
 func GETOffer(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
-		ctx.JSON(400, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	percent, err := GetOfferPercent(uint(id))
 	if err != nil {
-		ctx.JSON(500, gin.H{"error": err.Error()})
+		if errors.Is(err, gorm.ErrRecordNotFound) { // у иишки спросил как посмотреть что за ошибка потому что ошибки там разные появлялись
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "group not found"})
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(200, gin.H{
+	ctx.JSON(http.StatusOK, gin.H{
 		"group_id":      id,
 		"offer_percent": percent,
 	})
@@ -93,11 +102,11 @@ func NotesForStudent(ctx *gin.Context) {
 	}
 	notes, err := notes.GetAllNotesForStudent(uint(id))
 	if err != nil {
-		ctx.JSON(http.StatusOK, notes)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.IndentedJSON(http.StatusOK, gin.H{"notes for student": notes})
+	ctx.IndentedJSON(http.StatusOK, notes)
 }
 
 func AddNote(ctx *gin.Context) {
@@ -162,7 +171,7 @@ func DELETENote(ctx *gin.Context) {
 		return
 	}
 	if err := notes.DeleteNote(uint(id)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -194,7 +203,7 @@ func GetStudentsByGroup(ctx *gin.Context) {
 
 	students, err := students.GetStudentsByGroupID(uint(id))
 	if err != nil {
-		ctx.JSON(http.StatusOK, students)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -218,11 +227,13 @@ func DELETEStudent(ctx *gin.Context) {
 
 func AddStudent(ctx *gin.Context) {
 	var req struct {
-		Full_name     string `json:"full_name" binding:"required"`
-		Email         string `json:"email"`
-		Telegram      string `json:"telegram"`
-		Group_id      *uint  `json:"group_id"`
-		Tuition_total *uint  `json:"tuition_total"`
+		Full_name      string  `json:"full_name" binding:"required"`
+		Email          string  `json:"email"`
+		Telegram       string  `json:"telegram"`
+		Group_id       *uint   `json:"group_id"`
+		Tuition_total  *uint   `json:"tuition_total"`
+		Payment_status *string `json:"payment_status"`
+		Study_status   *string `json:"study_status"`
 	}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -242,7 +253,16 @@ func AddStudent(ctx *gin.Context) {
 		return
 	}
 
-	student, err := students.CreateStudent(req.Full_name, req.Email, req.Telegram, *req.Group_id, *req.Tuition_total)
+	if req.Payment_status == nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "укажите начаьный статус оплаты"})
+		return
+	}
+	if req.Study_status == nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "укажите статус учебы студента"})
+		return
+	}
+
+	student, err := students.CreateStudent(req.Full_name, req.Email, req.Telegram, req.Payment_status, req.Study_status, *req.Group_id, *req.Tuition_total)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -286,7 +306,7 @@ func DELETEGroup(ctx *gin.Context) {
 		return
 	}
 	if err := groups.DeleteGroup(uint(id)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -385,7 +405,7 @@ func GetGroups(ctx *gin.Context) {
 
 		groups, err := groups.GetGroupsByWeek(uint(week))
 		if err != nil {
-			ctx.JSON(http.StatusOK, groups)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		ctx.IndentedJSON(http.StatusOK, gin.H{"groups": groups})
@@ -399,7 +419,7 @@ func GetGroups(ctx *gin.Context) {
 		}
 		groups, err := groups.GetGroupsFinished(isFinished)
 		if err != nil {
-			ctx.JSON(http.StatusOK, groups)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -408,7 +428,7 @@ func GetGroups(ctx *gin.Context) {
 	}
 	groups, err := groups.GetAllGroups()
 	if err != nil {
-		ctx.JSON(http.StatusOK, groups)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -441,54 +461,10 @@ func GetStudents(ctx *gin.Context) {
 
 	studentsDB, err := students.GetStudentsFiltered(group_ids, payment_status, study_status)
 	if err != nil {
-		ctx.JSON(http.StatusOK, studentsDB)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	ctx.IndentedJSON(http.StatusOK, gin.H{"students": studentsDB})
 
-	// if group_ids != "" {
-	// 	group_id, err := strconv.Atoi(group_ids)
-	// 	if err != nil {
-	// 		ctx.JSON(400, gin.H{"error": err.Error()})
-	// 		return
-	// 	}
-
-	// 	student, err := students.GetStudentsByGroupID(uint(group_id))
-	// 	if err != nil {
-	// 		ctx.JSON(200, student)
-	// 		return
-	// 	}
-
-	// 	ctx.JSON(200, student)
-	// 	return
-	// }
-	// if payment_status != "" {
-	// 	student, err := students.GetStudentsByPaymentStatus(payment_status)
-	// 	if err != nil {
-	// 		ctx.JSON(404, gin.H{"error": err.Error()})
-	// 		return
-	// 	}
-
-	// 	ctx.JSON(200, student)
-	// 	return
-	// }
-	// if study_status != "" {
-	// 	student, err := students.GetStudentsByStudyStatus(study_status)
-	// 	if err != nil {
-	// 		ctx.JSON(404, gin.H{"error": err.Error()})
-	// 		return
-	// 	}
-
-	// 	ctx.JSON(200, student)
-	// 	return
-	// }
-
-	// studentsDB, err := students.GetAllStudents()
-	// if err != nil {
-	// 	ctx.JSON(500, gin.H{"error": err.Error()})
-	// 	return
-	// }
-
-	// ctx.IndentedJSON(200, gin.H{"students": studentsDB})
 }

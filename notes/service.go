@@ -90,7 +90,7 @@ func UpdateNote(id uint, text string) (*Note, error) {
 		return nil, err
 	}
 	if text != "" {
-		note.Author = text
+		note.Text = text
 	}
 	if err := db.Preload("Student").Save(&note).Error; err != nil {
 		return nil, err

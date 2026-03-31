@@ -84,11 +84,6 @@ func UpdateGroup(id, current_week uint, title string) (*Group, error) {
 	if err != nil {
 		return nil, err
 	}
-	if title != "" && len(title) > 5 {
-		group.Title = title
-	} else {
-		return nil, errors.New("если хотите изменить название введите больше чем 5 символов")
-	}
 	if group.Is_finished {
 		return nil, errors.New("группа уже завершена изменения запрещены")
 	}
