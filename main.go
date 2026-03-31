@@ -336,7 +336,8 @@ func AddGroup(ctx *gin.Context) {
 			return
 		}
 		if *req.Total_weeks > 15 {
-			*req.Total_weeks = 15
+			ctx.JSON(http.StatusBadRequest, gin.H{"err": "максимальнок количесто недель 15"})
+			return
 		}
 	} else {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "обязательно введите total_weeks!"})
@@ -386,7 +387,7 @@ func GetGroupByID(ctx *gin.Context) {
 	}
 	group, err := groups.GetGroupID(uint(id))
 	if err != nil {
-		ctx.JSON(http.StatusOK, group)
+		ctx.JSON(http.StatusNotFound, gin.H{"err": "not found"})
 		return
 	}
 

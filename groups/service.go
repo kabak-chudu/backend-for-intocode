@@ -19,7 +19,7 @@ func GetGroupsFinished(is_finished bool) ([]Group, error) {
 		}
 	} else {
 		if err := db.Where("is_finished = ? AND current_week < total_weeks", false).Find(&groups).Error; err != nil {
-			return []Group{}, nil
+			return nil, err
 		}
 	}
 	if len(groups) == 0 {
@@ -87,7 +87,7 @@ func UpdateGroup(id, current_week uint, title string) (*Group, error) {
 	if group.Is_finished {
 		return nil, errors.New("группа уже завершена изменения запрещены")
 	}
-
+	group.Title = title
 	if current_week >= group.Total_weeks {
 		group.Current_week = group.Total_weeks
 		group.Is_finished = true
