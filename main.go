@@ -331,10 +331,6 @@ func AddGroup(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "total_weeks не может быть отрицателен или равен нулю"})
 			return
 		}
-		if *req.Total_weeks == 1 {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "total_weeks должен быть хотя бы больше единицы"})
-			return
-		}
 		if *req.Total_weeks > 15 {
 			ctx.JSON(http.StatusBadRequest, gin.H{"err": "максимальнок количесто недель 15"})
 			return
