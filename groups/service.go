@@ -13,11 +13,17 @@ func GetGroupsFinished(is_finished bool) ([]Group, error) {
 	}
 
 	var groups []Group
-	if err := db.Where("is_finished = ?", is_finished).Find(&groups).Error; err != nil {
-		return nil, err
+	if is_finished {
+		if err := db.Where("is_finished = ? OR current_week >= total_weeks", true).Find(&groups).Error; err != nil {
+			return []Group{}, nil
+		}
+	} else {
+		if err := db.Where("is_finished = ? AND current_week < total_weeks", false).Find(&groups).Error; err != nil {
+			return []Group{}, nil
+		}
 	}
 	if len(groups) == 0 {
-		return nil, errors.New("завершенных групп не нашлось")
+		return []Group{}, nil
 	}
 	return groups, nil
 }
@@ -32,7 +38,7 @@ func GetGroupsByWeek(week uint) ([]Group, error) {
 		return nil, err
 	}
 	if len(groups) == 0 {
-		return nil, errors.New("групп на этой неделе не найдено")
+		return []Group{}, nil
 	}
 
 	return groups, nil
@@ -69,7 +75,7 @@ func CreateGroup(title string, total_weeks uint) (*Group, error) {
 	return &group, nil
 }
 
-func UpdateGroup(id, current_week uint) (*Group, error) {
+func UpdateGroup(id, current_week uint, title string) (*Group, error) {
 	db, err := connectdatabase.Connect()
 	if err != nil {
 		return nil, errors.New("не удалость кстановить соединение с БД")
@@ -78,7 +84,11 @@ func UpdateGroup(id, current_week uint) (*Group, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	if title != "" && len(title) > 5 {
+		group.Title = title
+	} else {
+		return nil, errors.New("если хотите изменить название введите больше чем 5 символов")
+	}
 	if group.Is_finished {
 		return nil, errors.New("группа уже завершена изменения запрещены")
 	}
@@ -107,7 +117,7 @@ func GetAllGroups() ([]Group, error) {
 		return nil, err
 	}
 	if len(groups) == 0 {
-		return nil, errors.New("не нашлось групп в базе данных")
+		return []Group{}, nil
 	}
 
 	return groups, nil

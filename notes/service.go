@@ -18,7 +18,7 @@ func GetAllNotes() ([]Note, error) {
 		return nil, err
 	}
 	if len(notes) == 0 {
-		return nil, errors.New("не нашлось заметок в базе данных")
+		return []Note{}, nil
 	}
 
 	return notes, nil
@@ -48,7 +48,7 @@ func GetAllNotesForStudent(student_id uint) ([]Note, error) {
 	}
 
 	if len(notes) == 0 {
-		return nil, errors.New("не найдено заметок по студенту")
+		return []Note{}, nil
 	}
 
 	return notes, nil
@@ -80,7 +80,7 @@ func CreateNote(student_id uint, author, text string) (*Note, error) {
 
 }
 
-func UpdateNote(id uint, author string) (*Note, error) {
+func UpdateNote(id uint, text string) (*Note, error) {
 	db, err := connectdatabase.Connect()
 	if err != nil {
 		return nil, errors.New("не удалость кстановить соединение с БД")
@@ -89,8 +89,8 @@ func UpdateNote(id uint, author string) (*Note, error) {
 	if err != nil {
 		return nil, err
 	}
-	if author != "" {
-		note.Author = author
+	if text != "" {
+		note.Author = text
 	}
 	if err := db.Preload("Student").Save(&note).Error; err != nil {
 		return nil, err

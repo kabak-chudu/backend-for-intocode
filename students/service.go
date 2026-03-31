@@ -129,7 +129,31 @@ func GetAllStudents() ([]Student, error) {
 		return nil, err
 	}
 	if len(students) == 0 {
-		return nil, errors.New("не нашлось студентов в базе данных")
+		return []Student{}, nil
+	}
+
+	return students, nil
+}
+
+func GetStudentsFiltered(groupID string, paymentStatus string, studyStatus string) ([]Student, error) {
+	db, err := connectdatabase.Connect()
+	if err != nil {
+		return nil, err
+	}
+	students := []Student{}
+
+	if groupID != "" {
+		db = db.Where("group_id = ?", groupID)
+	}
+	if paymentStatus != "" {
+		db = db.Where("payment_status = ?", paymentStatus)
+	}
+	if studyStatus != "" {
+		db = db.Where("study_status = ?", studyStatus)
+	}
+
+	if err := db.Find(&students).Error; err != nil {
+		return nil, err
 	}
 
 	return students, nil
@@ -145,40 +169,40 @@ func GetStudentsByGroupID(group_id uint) ([]Student, error) {
 		return nil, err
 	}
 	if len(students) == 0 {
-		return nil, errors.New("не нашлось студентов с такой группой")
+		return []Student{}, nil
 	}
 
 	return students, nil
 }
 
-func GetStudentsByPaymentStatus(payment_status string) ([]Student, error) {
-	db, err := connectdatabase.Connect()
-	if err != nil {
-		return nil, errors.New("не удалость кстановить соединение с БД")
-	}
-	students := []Student{}
-	if err := db.Preload("Group").Where("payment_status = ?", payment_status).Find(&students).Error; err != nil {
-		return nil, err
-	}
-	if len(students) == 0 {
-		return nil, errors.New("не нашлось студентов с таким статусом")
-	}
+// func GetStudentsByPaymentStatus(payment_status string) ([]Student, error) {
+// 	db, err := connectdatabase.Connect()
+// 	if err != nil {
+// 		return nil, errors.New("не удалость кстановить соединение с БД")
+// 	}
+// 	students := []Student{}
+// 	if err := db.Preload("Group").Where("payment_status = ?", payment_status).Find(&students).Error; err != nil {
+// 		return nil, err
+// 	}
+// 	if len(students) == 0 {
+// 		return []Student{}, nil
+// 	}
 
-	return students, nil
-}
+// 	return students, nil
+// }
 
-func GetStudentsByStudyStatus(study_status string) ([]Student, error) {
-	db, err := connectdatabase.Connect()
-	if err != nil {
-		return nil, errors.New("не удалость кстановить соединение с БД")
-	}
-	students := []Student{}
-	if err := db.Preload("Group").Where("study_status = ?", study_status).Find(&students).Error; err != nil {
-		return nil, err
-	}
-	if len(students) == 0 {
-		return nil, errors.New("не нашлось студентов с таким статусом")
-	}
+// func GetStudentsByStudyStatus(study_status string) ([]Student, error) {
+// 	db, err := connectdatabase.Connect()
+// 	if err != nil {
+// 		return nil, errors.New("не удалость кстановить соединение с БД")
+// 	}
+// 	students := []Student{}
+// 	if err := db.Preload("Group").Where("study_status = ?", study_status).Find(&students).Error; err != nil {
+// 		return nil, err
+// 	}
+// 	if len(students) == 0 {
+// 		return []Student{}, nil
+// 	}
 
-	return students, nil
-}
+// 	return students, nil
+// }
